@@ -1,13 +1,14 @@
-import PIL
 import copy as copy
 
 suits = ['H', 'D', 'C', 'S']
 red_suits = ['H', 'D']
 black_suits = ['C', 'S']
 
-faces = ['K', 'Q', 'J', 'A']
+faces = ['F']
+suits = ['H', 'D', 'C', 'S']
+
 numbs = ['0', '9', '8', '7', '6']
-cards = ['K', 'Q', 'J', 'A', '0', '9', '8', '7', '6']
+colrs = ['R', 'B']
 
 class Card:
 	def __init__(self, value, suit):
@@ -33,7 +34,7 @@ class Card:
 
 		return False
 	def is_red(self):
-		if self.get_suit() == 'H' or self.get_suit() == 'D':
+		if self.get_suit() == 'R':
 			return True
 
 		return False
@@ -45,23 +46,17 @@ class Card:
 			if self.get_value() == '0':
 				return targets
 
-			suits_to_iterate = []
 			target_number = numbs[numbs.index(self.get_value())-1]
 
 			if self.is_red():
-				suits_to_iterate = black_suits
+				targets.append(target_number + 'B')
 			else:
-				suits_to_iterate = red_suits
-
-			for suit in suits_to_iterate:
-				targets.append(target_number + suit)
+				targets.append(target_number + 'R')
 
 			return targets
 
 		if self.is_face():
-			for face in faces:
-				if not face == self.get_value():
-					targets.append(face + self.get_suit())
+			targets.append(self.get_value() + self.get_suit())
 
 			return targets
 
@@ -102,10 +97,12 @@ class Rank:
 		return stack
 
 class Game:
-	def __init__(self, rank_info):
+	def __init__(self, rank_info, hand=Rank(-1, []), move_list = []):
 		self.ranks = rank_info
-		self.hand = []
+		self.hand = hand
 		self.state_stack = []
+		self.prev_moves = move_list
+		self.winning_moves = []
 
 	def get_hand(self):
 		return self.hand
@@ -115,30 +112,88 @@ class Game:
 	def get_rank_moves(self, ref_rank):
 		moves = []
 
+		if len(ref_rank.cards) == 0:
+			return moves
+
 		# Rank stack is the largest front stack in our rank, and we want the bottom card in that stack
 		rank_stack = ref_rank.get_top_stack()
 		rank_top_card = rank_stack[-1]
 		rank_valid_moves = rank_top_card.get_targets()
 
+		if len(rank_stack) == 1 and len(self.hand.cards) == 0 and len(ref_rank.cards) > 1:
+			move = [
+				self.hand,
+				ref_rank,
+				rank_stack
+			]
+			moves.append(move)
+		
+		# {rank destination_rank, rank origin_rank, array cards_to_move, card target_card}
 		for rank in self.ranks:
 			if len(rank.get_cards()) == 0:
 				continue
+
 			# Make sure we're not looking at the rank we're starting from
 			if not rank.get_rank() == ref_rank.get_rank():
 				top_card = rank.get_cards()[0]
 
 				# Check if top card is a valid move for our stack
 				if top_card.get_id() in rank_valid_moves:
-					# {rank destination_rank, rank origin_rank, array cards_to_move, card target_card}
 					move = [
 						rank,
 						ref_rank,
-						rank_stack,
-						top_card
+						rank_stack
+					]
+					moves.append(move)
+				if len(rank.cards) == 0 and (len(rank_stack) < len(ref_rank.cards)):
+					move = [
+						rank,
+						ref_rank,
+						rank_stack
 					]
 					moves.append(move)
 
 		return moves
+
+	def is_victory(self):
+		points = 0
+
+		for rank in self.ranks:
+			rank_stack = rank.get_top_stack()
+
+			# Check if completed face stack
+			if len(rank_stack) == 4 and rank_stack[-1].get_suit() in suits:
+				points += 1
+			
+			# Check if completed number stack
+			if len(rank_stack) == 5 and rank_stack[-1].get_value() == 0:
+				points += 1
+			
+		# Check if hand is empty
+		if len(self.hand.cards) > 0:
+			return False
+
+		if points == 8:
+			return True
+		
+		return False
+
+	def test_victory(self):
+		points = 0
+
+		if len(self.hand.cards) > 0:
+			return False
+
+		for rank in self.ranks:
+			rank_stack = rank.get_top_stack()
+
+			if len(rank_stack) == 3:
+				points += 1
+			
+		if points == 2:
+			return True
+
+		return False
 
 	def output(self):
 		out_arr = []
@@ -174,54 +229,97 @@ class Game:
 		print(out_str)
 
 	def make_move(self, move):
-		new_game = Game(copy.deepcopy(self.ranks))
-		new_move = move.copy()
+		prev_move_list = copy.deepcopy(self.prev_moves)
+		prev_move_list.append(copy.deepcopy(move))
+
+		new_game = Game(copy.deepcopy(self.ranks), copy.deepcopy(self.hand), prev_move_list)
+		new_move = copy.deepcopy(move)
+		new_ranks = copy.deepcopy(self.ranks)
 
 		dest_rank_id = move[0].get_rank()
 		origin_rank_id = move[1].get_rank()
 
-		new_game.ranks[dest_rank_id].cards.reverse()
-		new_move[2].reverse()
-		new_game.ranks[dest_rank_id].cards.extend(move[2])
-		new_game.ranks[dest_rank_id].cards.reverse()
+		# Check if going to hand
+		if dest_rank_id == -1:
+			new_game.hand.cards.extend(move[2])
 
-		for card in move[2]:
-			new_game.ranks[origin_rank_id].remove_card(card.get_id())
+			for card in move[2]:
+				new_game.ranks[origin_rank_id].remove_card(card.get_id())
+
+		elif origin_rank_id == -1:
+			new_game.ranks[dest_rank_id].cards.reverse()
+			new_move[2].reverse()
+			new_game.ranks[dest_rank_id].cards.extend(new_move[2])
+			new_game.ranks[dest_rank_id].cards.reverse()
+
+			for card in move[2]:
+				new_game.hand.remove_card(card.get_id())
+		
+		else:
+			new_ranks[dest_rank_id].cards.reverse()
+			new_move[2].reverse()
+			new_ranks[dest_rank_id].cards.extend(new_move[2])
+			new_ranks[dest_rank_id].cards.reverse()
+
+			new_game.ranks[dest_rank_id] = new_ranks[dest_rank_id]
+
+			for card in move[2]:
+				new_ranks[origin_rank_id].remove_card(card.get_id())
+			
+			new_game.ranks[origin_rank_id] = new_ranks[origin_rank_id]
 
 		return new_game
 
-	def solve(self):
-		# Get all possible moves
+	def generate_state_stack(self):
 		for rank in self.ranks:
 			moves = self.get_rank_moves(rank)
-
-			# Generate new gamestates and send them to the stack
+			if len(moves) == 0:
+				continue
+				
 			for move in moves:
 				new_game = self.make_move(move)
 				self.state_stack.append(new_game)
+		
+		hand_moves = self.get_rank_moves(self.hand)
+		for move in hand_moves:
+			new_game = self.make_move(move)
+			self.state_stack.append(new_game)
 
+	def solve(self):
+		if self.test_victory():
+			self.output()
+
+			out_str = ''
+			for move in self.prev_moves:
+				out_str += str(move[1].get_rank()) + ' -> ' + str(move[0].get_rank()) + '\n'
+
+			print(out_str)
+
+			return self.prev_moves
+
+		else:
+			self.generate_state_stack()
+
+			for state in self.state_stack:
+				win_moves = state.solve()
+
+				if len(win_moves) > 0:
+					return win_moves
+			
+			return []
 
 ranks = [
-	Rank(0, [Card('8', 'S'), Card('9', 'S')]),
-	Rank(1, [Card('6', 'S'), Card('7', 'H'), Card('9', 'H')]),
-	Rank(2, [Card('9', 'H')]),
-	Rank(3, [Card('Q', 'H'), Card('K', 'H')]),
-	Rank(4, [Card('A', 'H'), Card('A', 'D'), Card('K', 'C')])
+	Rank(0, [Card('F', 'H'), Card('F', 'C')]),
+	Rank(1, [Card('F', 'C'), Card('F', 'H')]),
+	Rank(2, [Card('F', 'H'), Card('F', 'C')])
 ]
 
 a = Game(ranks.copy())
 
-a.solve()
-print('\n\nORIGINAL')
 a.output()
-print('MOVES BELOW')
-for state in a.state_stack:
-	state.output()
+solved_moves = a.solve()
 
-print(a.get_rank_moves(a.ranks[3]))
-
-# 1. Generate list of gamestates from each possible move
-# 2. For each gamestate, repeat #1
-# 3. If a gamestate's possible future gamestate list is empty, check if we've won
-# 4a. If we've won, return the list of moves responsible for getting us there and iterate over them backwards
-# 4b. If we haven't won, return and toss self out of parent (or have parent check if we're empty and losers?)
+# out_str = ''
+# for i, move in enumerate(solved_moves):
+# 	out_str += str(i) + '\t' + str(move[1].get_rank()) + ' -> ' + str(move[0].get_rank()) + '\n'
+# print(out_str)
