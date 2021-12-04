@@ -1,4 +1,5 @@
 import copy as copy
+import time
 
 suits = ['H', 'D', 'C', 'S']
 red_suits = ['H', 'D']
@@ -131,6 +132,14 @@ class Game:
 		# {rank destination_rank, rank origin_rank, array cards_to_move, card target_card}
 		for rank in self.ranks:
 			if len(rank.get_cards()) == 0:
+				if not rank.get_rank() == ref_rank.get_rank() and len(rank_stack) < len(ref_rank.cards):
+					move = [
+						rank,
+						ref_rank,
+						rank_stack
+					]
+
+					moves.append(move)
 				continue
 
 			# Make sure we're not looking at the rank we're starting from
@@ -144,13 +153,7 @@ class Game:
 						ref_rank,
 						rank_stack
 					]
-					moves.append(move)
-				if len(rank.cards) == 0 and (len(rank_stack) < len(ref_rank.cards)):
-					move = [
-						rank,
-						ref_rank,
-						rank_stack
-					]
+
 					moves.append(move)
 
 		return moves
@@ -158,20 +161,20 @@ class Game:
 	def is_victory(self):
 		points = 0
 
+		if len(self.hand.cards) > 0:
+			return False
+		
+
 		for rank in self.ranks:
 			rank_stack = rank.get_top_stack()
 
 			# Check if completed face stack
-			if len(rank_stack) == 4 and rank_stack[-1].get_suit() in suits:
+			if len(rank_stack) == 4 and rank_stack[-1].is_face():
 				points += 1
 			
 			# Check if completed number stack
-			if len(rank_stack) == 5 and rank_stack[-1].get_value() == 0:
+			if len(rank_stack) == 5 and rank_stack[-1].is_number():
 				points += 1
-			
-		# Check if hand is empty
-		if len(self.hand.cards) > 0:
-			return False
 
 		if points == 8:
 			return True
@@ -271,8 +274,16 @@ class Game:
 		return new_game
 
 	def generate_state_stack(self):
+		hand_moves = self.get_rank_moves(self.hand)
+		
+		if len(hand_moves) > 0:
+			for move in hand_moves:
+				new_game = self.make_move(move)
+				self.state_stack.append(new_game)
+
 		for rank in self.ranks:
 			moves = self.get_rank_moves(rank)
+
 			if len(moves) == 0:
 				continue
 				
@@ -280,13 +291,9 @@ class Game:
 				new_game = self.make_move(move)
 				self.state_stack.append(new_game)
 		
-		hand_moves = self.get_rank_moves(self.hand)
-		for move in hand_moves:
-			new_game = self.make_move(move)
-			self.state_stack.append(new_game)
 
 	def solve(self):
-		if self.test_victory():
+		if self.is_victory():
 			self.output()
 
 			out_str = ''
@@ -308,18 +315,32 @@ class Game:
 			
 			return []
 
+# ranks = [
+# 	Rank(0, [Card('7', 'B'), Card('8', 'B'), Card('9', 'R')]),
+# 	Rank(1, [Card('7', 'R'), Card('8', 'R')]),
+# 	Rank(2, [Card('9', 'B')])
+# ]
+
 ranks = [
-	Rank(0, [Card('F', 'H'), Card('F', 'C')]),
-	Rank(1, [Card('F', 'C'), Card('F', 'H')]),
-	Rank(2, [Card('F', 'H'), Card('F', 'C')])
+    Rank(0, [Card('7', 'B'), Card('F', 'S'), Card('F', 'H'), Card('F', 'C')]),
+    Rank(1, [Card('8', 'B'), Card('7', 'B'), Card('F', 'D'), Card('F', 'S')]),
+    Rank(2, [Card('0', 'R'), Card('9', 'R'), Card('F', 'S'), Card('6', 'B')]),
+    Rank(3, [Card('F', 'H'), Card('9', 'B'), Card('8', 'R'), Card('7', 'R')]),
+    Rank(4, [Card('F', 'D'), Card('F', 'D'), Card('6', 'R'), Card('F', 'H')]),
+    Rank(5, [Card('8', 'B'), Card('0', 'R'), Card('8', 'R'), Card('7', 'R')]),
+    Rank(6, [Card('0', 'B'), Card('F', 'C'), Card('6', 'R'), Card('F', 'S')]),
+    Rank(7, [Card('9', 'R'), Card('9', 'B'), Card('F', 'D'), Card('F', 'H')]),
+    Rank(8, [Card('F', 'C'), Card('6', 'B'), Card('F', 'C'), Card('0', 'B')]),
 ]
+# ranks = [
+#     Rank(0, [Card('7', 'B')]),
+#     Rank(1, [Card('8', 'R'), Card('7', 'R')]),
+#     Rank(2, [Card('0', 'R'), Card('9', 'R'), Card('6', 'B')]),
+#     Rank(3, [Card('9', 'B'), Card('8', 'B'), Card('F', 'H')]),
+#     Rank(4, [Card('6', 'R'), Card('0', 'B'), Card('F', 'H')])
+# ]
 
 a = Game(ranks.copy())
 
 a.output()
 solved_moves = a.solve()
-
-# out_str = ''
-# for i, move in enumerate(solved_moves):
-# 	out_str += str(i) + '\t' + str(move[1].get_rank()) + ' -> ' + str(move[0].get_rank()) + '\n'
-# print(out_str)
