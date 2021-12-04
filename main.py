@@ -1,101 +1,8 @@
 import copy as copy
-import time
 
-suits = ['H', 'D', 'C', 'S']
-red_suits = ['H', 'D']
-black_suits = ['C', 'S']
-
-faces = ['F']
-suits = ['H', 'D', 'C', 'S']
-
-numbs = ['0', '9', '8', '7', '6']
-colrs = ['R', 'B']
-
-class Card:
-	def __init__(self, value, suit):
-		self.suit = suit
-		self.value = value
-		self.id = value + suit
-
-	def get_suit(self):
-		return self.suit
-	def get_value(self):
-		return self.value
-	def get_id(self):
-		return self.id
-
-	def is_face(self):
-		if self.value in faces:
-			return True
-
-		return False
-	def is_number(self):
-		if self.value in numbs:
-			return True
-
-		return False
-	def is_red(self):
-		if self.get_suit() == 'R':
-			return True
-
-		return False
-
-	def get_targets(self):
-		targets = []
-
-		if self.is_number():
-			if self.get_value() == '0':
-				return targets
-
-			target_number = numbs[numbs.index(self.get_value())-1]
-
-			if self.is_red():
-				targets.append(target_number + 'B')
-			else:
-				targets.append(target_number + 'R')
-
-			return targets
-
-		if self.is_face():
-			targets.append(self.get_value() + self.get_suit())
-
-			return targets
-
-class Rank:
-	def __init__(self, rank, cards):
-		self.rank = rank
-		self.cards = cards
-
-	def get_rank(self):
-		return self.rank
-	def get_cards(self):
-		return self.cards
-	def get_card_ids(self):
-		out_arr = []
-		for card in self.cards:
-			out_arr.append(card.get_id())
-		
-		return out_arr
-
-	def remove_card(self, card_id):
-		for card in self.cards:
-			if card.get_id() == card_id:
-				self.cards.remove(card)
-
-	def get_top_stack(self):
-		stack = []
-		for card in self.get_cards():
-			if len(stack) == 0:
-				stack.append(card)
-				continue
-
-			if card.get_id() in stack[-1].get_targets():
-				stack.append(card)
-				continue
-
-			break
-
-		return stack
+from Card import Card
+from Move import Move
+from Rank import Rank
 
 class Game:
 	def __init__(self, rank_info):
@@ -125,24 +32,14 @@ class Game:
 		rank_valid_moves = rank_top_card.get_targets()
 
 		if len(rank_stack) == 1 and len(self.hand.cards) == 0 and len(ref_rank.cards) > 1:
-			move = [
-				self.hand,
-				ref_rank,
-				rank_stack
-			]
-			moves.append(move)
+			moves.append(Move(self.hand, ref_rank, rank_stack))
 		
 		# {rank destination_rank, rank origin_rank, array cards_to_move, card target_card}
 		for rank in self.ranks:
 			if len(rank.get_cards()) == 0:
 				if not rank.get_rank() == ref_rank.get_rank() and len(rank_stack) < len(ref_rank.cards):
-					move = [
-						rank,
-						ref_rank,
-						rank_stack
-					]
-
-					moves.append(move)
+					moves.append(Move(rank, ref_rank, rank_stack))
+					
 				continue
 
 			# Make sure we're not looking at the rank we're starting from
@@ -151,13 +48,7 @@ class Game:
 
 				# Check if top card is a valid move for our stack
 				if top_card.get_id() in rank_valid_moves:
-					move = [
-						rank,
-						ref_rank,
-						rank_stack
-					]
-
-					moves.append(move)
+					moves.append(Move(rank, ref_rank, rank_stack))
 
 		return moves
 
@@ -236,33 +127,33 @@ class Game:
 	def make_move(self, move):
 		new_move = copy.copy(move)
 
-		dest_rank_id = move[0].get_rank()
-		origin_rank_id = move[1].get_rank()
+		dest_rank_id = move.dest_rank.get_rank()
+		from_rank_id = move.from_rank.get_rank()
 
 		# Check if going to hand
 		if dest_rank_id == -1:
-			self.hand.cards = move[2]
+			self.hand.cards = move.stack
 
-			for card in move[2]:
-				self.ranks[origin_rank_id].remove_card(card.get_id())
+			for card in move.stack:
+				self.ranks[from_rank_id].remove_card(card.get_id())
 
-		elif origin_rank_id == -1:
+		elif from_rank_id == -1:
 			self.ranks[dest_rank_id].cards.reverse()
-			new_move[2].reverse()
-			self.ranks[dest_rank_id].cards.extend(new_move[2])
+			new_move.stack.reverse()
+			self.ranks[dest_rank_id].cards.extend(new_move.stack)
 			self.ranks[dest_rank_id].cards.reverse()
 
-			for card in move[2]:
+			for card in move.stack:
 				self.hand.remove_card(card.get_id())
 		
 		else:
 			self.ranks[dest_rank_id].cards.reverse()
-			new_move[2].reverse()
-			self.ranks[dest_rank_id].cards.extend(new_move[2])
+			new_move.stack.reverse()
+			self.ranks[dest_rank_id].cards.extend(new_move.stack)
 			self.ranks[dest_rank_id].cards.reverse()
 
-			for card in move[2]:
-				self.ranks[origin_rank_id].remove_card(card.get_id())
+			for card in move.stack:
+				self.ranks[from_rank_id].remove_card(card.get_id())
 		
 
 	def iterate(self):
@@ -287,7 +178,8 @@ class Game:
 					new_move_stack.append(move_list_copy)
 			
 		self.move_stack = new_move_stack.copy()
-
+		if len(self.move_stack) > 0:
+			self.iterate()
 
 	def solve(self):
 		for rank in self.ranks:
@@ -296,8 +188,7 @@ class Game:
 			for move in moves:
 				self.move_stack.append([move])
 
-		while len(self.move_stack) > 0:
-			self.iterate()
+		self.iterate()
 		
 		print(len(self.winning_moves))
 
@@ -306,8 +197,8 @@ class Game:
 			
 
 ranks = [
-	Rank(0, [Card('7', 'B'), Card('8', 'B')]),
-	Rank(1, [Card('7', 'R'), Card('8', 'R')])
+	Rank(0, [Card('7', 'R'), Card('7', 'B'), Card('8', 'B')]),
+	Rank(1, [Card('8', 'R')])
 ]
 
 # ranks = [
