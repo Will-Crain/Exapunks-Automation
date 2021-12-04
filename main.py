@@ -98,12 +98,15 @@ class Rank:
 		return stack
 
 class Game:
-	def __init__(self, rank_info, hand=Rank(-1, []), move_list = []):
+	def __init__(self, rank_info):
 		self.ranks = rank_info
-		self.hand = hand
-		self.state_stack = []
-		self.prev_moves = move_list
+		self.hand = Rank(-1, [])
+
+		self.move_stack = []
 		self.winning_moves = []
+
+		self.done = False
+		self.iter = 0
 
 	def get_hand(self):
 		return self.hand
@@ -180,7 +183,6 @@ class Game:
 			return True
 		
 		return False
-
 	def test_victory(self):
 		points = 0
 
@@ -190,7 +192,7 @@ class Game:
 		for rank in self.ranks:
 			rank_stack = rank.get_top_stack()
 
-			if len(rank_stack) == 3:
+			if len(rank_stack) == 2:
 				points += 1
 			
 		if points == 2:
@@ -232,112 +234,92 @@ class Game:
 		print(out_str)
 
 	def make_move(self, move):
-		prev_move_list = copy.deepcopy(self.prev_moves)
-		prev_move_list.append(copy.deepcopy(move))
-
-		new_game = Game(copy.deepcopy(self.ranks), copy.deepcopy(self.hand), prev_move_list)
-		new_move = copy.deepcopy(move)
-		new_ranks = copy.deepcopy(self.ranks)
+		new_move = copy.copy(move)
 
 		dest_rank_id = move[0].get_rank()
 		origin_rank_id = move[1].get_rank()
 
 		# Check if going to hand
 		if dest_rank_id == -1:
-			new_game.hand.cards.extend(move[2])
+			self.hand.cards = move[2]
 
 			for card in move[2]:
-				new_game.ranks[origin_rank_id].remove_card(card.get_id())
+				self.ranks[origin_rank_id].remove_card(card.get_id())
 
 		elif origin_rank_id == -1:
-			new_game.ranks[dest_rank_id].cards.reverse()
+			self.ranks[dest_rank_id].cards.reverse()
 			new_move[2].reverse()
-			new_game.ranks[dest_rank_id].cards.extend(new_move[2])
-			new_game.ranks[dest_rank_id].cards.reverse()
+			self.ranks[dest_rank_id].cards.extend(new_move[2])
+			self.ranks[dest_rank_id].cards.reverse()
 
 			for card in move[2]:
-				new_game.hand.remove_card(card.get_id())
+				self.hand.remove_card(card.get_id())
 		
 		else:
-			new_ranks[dest_rank_id].cards.reverse()
+			self.ranks[dest_rank_id].cards.reverse()
 			new_move[2].reverse()
-			new_ranks[dest_rank_id].cards.extend(new_move[2])
-			new_ranks[dest_rank_id].cards.reverse()
-
-			new_game.ranks[dest_rank_id] = new_ranks[dest_rank_id]
+			self.ranks[dest_rank_id].cards.extend(new_move[2])
+			self.ranks[dest_rank_id].cards.reverse()
 
 			for card in move[2]:
-				new_ranks[origin_rank_id].remove_card(card.get_id())
-			
-			new_game.ranks[origin_rank_id] = new_ranks[origin_rank_id]
-
-		return new_game
-
-	def generate_state_stack(self):
-		hand_moves = self.get_rank_moves(self.hand)
+				self.ranks[origin_rank_id].remove_card(card.get_id())
 		
-		if len(hand_moves) > 0:
-			for move in hand_moves:
-				new_game = self.make_move(move)
-				self.state_stack.append(new_game)
 
+	def iterate(self):
+		new_move_stack = []
+		
+		for move_list in self.move_stack:
+			new_game = Game(copy.deepcopy(self.ranks))
+		
+			for move in move_list:
+				new_game.make_move(move)
+
+			if new_game.test_victory():
+				new_game.output()
+				self.winning_moves.append(move_list)
+			
+			for rank in new_game.ranks:
+				moves_to_add = new_game.get_rank_moves(rank)
+				for move in moves_to_add:
+					move_list_copy = copy.deepcopy(move_list)
+					move_list_copy.append(move)
+			
+					new_move_stack.append(move_list_copy)
+			
+		self.move_stack = new_move_stack.copy()
+
+
+	def solve(self):
 		for rank in self.ranks:
 			moves = self.get_rank_moves(rank)
 
-			if len(moves) == 0:
-				continue
-				
 			for move in moves:
-				new_game = self.make_move(move)
-				self.state_stack.append(new_game)
+				self.move_stack.append([move])
+
+		while len(self.move_stack) > 0:
+			self.iterate()
 		
+		print(len(self.winning_moves))
 
-	def solve(self):
-		if self.is_victory():
-			self.output()
-
-			out_str = ''
-			for move in self.prev_moves:
-				out_str += str(move[1].get_rank()) + ' -> ' + str(move[0].get_rank()) + '\n'
-
-			print(out_str)
-
-			return self.prev_moves
-
-		else:
-			self.generate_state_stack()
-
-			for state in self.state_stack:
-				win_moves = state.solve()
-
-				if len(win_moves) > 0:
-					return win_moves
 			
-			return []
-
-# ranks = [
-# 	Rank(0, [Card('7', 'B'), Card('8', 'B'), Card('9', 'R')]),
-# 	Rank(1, [Card('7', 'R'), Card('8', 'R')]),
-# 	Rank(2, [Card('9', 'B')])
-# ]
+		
+			
 
 ranks = [
-    Rank(0, [Card('7', 'B'), Card('F', 'S'), Card('F', 'H'), Card('F', 'C')]),
-    Rank(1, [Card('8', 'B'), Card('7', 'B'), Card('F', 'D'), Card('F', 'S')]),
-    Rank(2, [Card('0', 'R'), Card('9', 'R'), Card('F', 'S'), Card('6', 'B')]),
-    Rank(3, [Card('F', 'H'), Card('9', 'B'), Card('8', 'R'), Card('7', 'R')]),
-    Rank(4, [Card('F', 'D'), Card('F', 'D'), Card('6', 'R'), Card('F', 'H')]),
-    Rank(5, [Card('8', 'B'), Card('0', 'R'), Card('8', 'R'), Card('7', 'R')]),
-    Rank(6, [Card('0', 'B'), Card('F', 'C'), Card('6', 'R'), Card('F', 'S')]),
-    Rank(7, [Card('9', 'R'), Card('9', 'B'), Card('F', 'D'), Card('F', 'H')]),
-    Rank(8, [Card('F', 'C'), Card('6', 'B'), Card('F', 'C'), Card('0', 'B')]),
+	Rank(0, [Card('7', 'B'), Card('8', 'B')]),
+	Rank(1, [Card('7', 'R'), Card('8', 'R')])
 ]
+
 # ranks = [
-#     Rank(0, [Card('7', 'B')]),
-#     Rank(1, [Card('8', 'R'), Card('7', 'R')]),
-#     Rank(2, [Card('0', 'R'), Card('9', 'R'), Card('6', 'B')]),
-#     Rank(3, [Card('9', 'B'), Card('8', 'B'), Card('F', 'H')]),
-#     Rank(4, [Card('6', 'R'), Card('0', 'B'), Card('F', 'H')])
+#     Rank(0, [Card('7', 'B'), Card('F', 'S'), Card('F', 'H'), Card('F', 'C')]),
+#     Rank(1, [Card('8', 'B'), Card('7', 'B'), Card('F', 'D'), Card('F', 'S')]),
+#     Rank(2, [Card('0', 'R'), Card('9', 'R'), Card('F', 'S'), Card('6', 'B')]),
+#     Rank(3, [Card('F', 'H'), Card('9', 'B'), Card('8', 'R'), Card('7', 'R')]),
+#     Rank(4, [Card('F', 'D'), Card('F', 'D'), Card('6', 'R'), Card('F', 'H')]),
+#     Rank(5, [Card('8', 'B'), Card('0', 'R'), Card('8', 'R'), Card('7', 'R')]),
+#     Rank(6, [Card('0', 'B'), Card('F', 'C'), Card('6', 'R'), Card('F', 'S')]),
+#     Rank(7, [Card('9', 'R'), Card('9', 'B'), Card('F', 'D'), Card('F', 'H')]),
+#     Rank(8, [Card('F', 'C'), Card('6', 'B'), Card('F', 'C'), Card('0', 'B')]),
 # ]
 
 a = Game(ranks.copy())
