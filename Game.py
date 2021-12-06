@@ -3,6 +3,7 @@ import time
 
 from Move import Move
 from Rank import Rank
+from Card import Card
 
 class Game:
 	def __init__(self, rank_info, hand=Rank(-1, [])):
@@ -166,8 +167,6 @@ class Game:
 			for card in arr:
 				out_str += card + ' '
 
-
-
 		out_str += '\n'
 		print(out_str)
 
@@ -181,10 +180,20 @@ class Game:
 		
 		return Game(new_rank_array, new_hand)
 	def make_move(self, move):
-		self.get_rank(move.dest_rank_id).cards.extend(move.stack)
+		from_rank = self.get_rank(move.from_rank_id)
+		dest_rank = self.get_rank(move.dest_rank_id)
 
-		for _ in range(len(move.stack)):
-			self.get_rank(move.from_rank_id).cards.pop()
+
+		def do_extend(rank, stack):
+			for card in stack:
+				rank.cards.append(card)
+			# rank.cards.extend(stack)
+		def do_pop(rank, iter):
+			for _ in range(iter):
+				rank.cards.pop()
+
+		do_extend(dest_rank, move.stack)
+		do_pop(from_rank, len(move.stack))
 				
 	def iterate(self):
 		new_move_stack = []
@@ -196,9 +205,11 @@ class Game:
 				new_game.make_move(move)
 
 
-			if new_game.test_victory():
+			if new_game.is_victory():
 				# new_game.output()
 				self.winning_moves.append(move_list)
+				self.move_stack = []
+				return
 			
 			hash = new_game.hash()
 			if self.hash_exists(hash):
@@ -248,7 +259,21 @@ class Game:
 
 				print(out_str)
 
-		print('WINNING MOVES: %s' % len(self.winning_moves))
 		if len(self.winning_moves) > 0:
-			for move in self.winning_moves[0]:
-				move.output()
+			return self.winning_moves[0]
+		else:
+			print('No winning moves :(')
+
+
+# ranks = [
+# 	Rank(0, [Card('7', 'R'), Card('F', 'C'), Card('F', 'C'), Card('F', 'C')]),
+# 	Rank(1, [Card('8', 'B'), Card('0', 'B'), Card('F', 'D'), Card('F', 'D')]),
+# 	Rank(2, [Card('F', 'S'), Card('9', 'R'), Card('6', 'R'), Card('7', 'B')]),
+# 	Rank(3, [Card('6', 'B'), Card('9', 'R'), Card('F', 'H'), Card('6', 'R')]),
+# 	Rank(4, [Card('9', 'B'), Card('F', 'S'), Card('F', 'S'), Card('F', 'H')]),
+# 	Rank(5, [Card('7', 'B'), Card('0', 'R'), Card('F', 'S'), Card('F', 'D')]),
+# 	Rank(6, [Card('F', 'C'), Card('9', 'B'), Card('F', 'D'), Card('F', 'H')]),
+# 	Rank(7, [Card('7', 'R'), Card('F', 'H'), Card('0', 'B'), Card('6', 'B')]),
+# 	Rank(8, [Card('8', 'B'), Card('8', 'R'), Card('0', 'R'), Card('8', 'R')])
+# ]	############
+
