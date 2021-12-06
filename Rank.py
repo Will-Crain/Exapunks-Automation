@@ -1,4 +1,5 @@
 from collections import deque
+import copy
 
 class Rank:
 	def __init__(self, rank, cards):
@@ -16,12 +17,25 @@ class Rank:
 		self.cards.remove(card)
 
 	def get_top_stack(self):
-		stack = []
-
 		if len(self.cards) == 0:
-			return stack
+			return []
 		
+		# stack = copy.copy(self.cards)
 		stack = []
+		# complete = False
+
+		# while not complete:
+		# 	if len(stack) == 1:
+		# 		complete = True
+		# 		break
+	
+		# 	if not cards[0] in cards[1].get_targets():
+		# 		cards.popleft()
+		# 	else:
+		# 		complete = True
+		# 		break
+		
+		# return cards
 		for card in reversed(self.cards):
 			if len(stack) == 0:
 				stack.append(card)
