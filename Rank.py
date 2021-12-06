@@ -1,35 +1,45 @@
+from collections import deque
+
 class Rank:
 	def __init__(self, rank, cards):
 		self.rank = rank
-		self.cards = cards
+		self.cards = deque(cards)
 
-	def get_rank(self):
-		return self.rank
-	def get_cards(self):
-		return self.cards
 	def get_card_ids(self):
 		out_arr = []
 		for card in self.cards:
-			out_arr.append(card.get_id())
+			out_arr.append(card.id)
 		
 		return out_arr
 
-	def remove_card(self, card_id):
-		for card in self.cards:
-			if card.get_id() == card_id:
-				self.cards.remove(card)
+	def remove_card(self, card):
+		self.cards.remove(card)
 
 	def get_top_stack(self):
 		stack = []
-		for card in self.get_cards():
+
+		if len(self.cards) == 0:
+			return stack
+		
+		stack = []
+		for card in reversed(self.cards):
 			if len(stack) == 0:
 				stack.append(card)
-				continue
+			else:
+				if card.id in stack[-1].get_targets():
+					stack.append(card)
+				else:
+					break
 
-			if card.get_id() in stack[-1].get_targets():
-				stack.append(card)
-				continue
-
-			break
-
+		stack.reverse()
 		return stack
+
+	def hash(self):
+		out_str = ''
+		if self.rank == -1:
+			out_str += 'HAND_'
+		else:
+			out_str += 'COL_'
+		out_str += ''.join(self.get_card_ids())
+
+		return out_str

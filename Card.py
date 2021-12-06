@@ -1,5 +1,11 @@
 
 numbs = ['0', '9', '8', '7', '6']
+numb_lookup = {
+	'9':	'0',
+	'8':	'9',
+	'7':	'8',
+	'6':	'7'
+}
 colrs = ['R', 'B']
 
 faces = ['F']
@@ -12,25 +18,18 @@ class Card:
 		self.value = value
 		self.id = value + suit
 
-	def get_suit(self):
-		return self.suit
-	def get_value(self):
-		return self.value
-	def get_id(self):
-		return self.id
-
 	def is_face(self):
-		if self.value in faces:
+		if self.value == 'F':
 			return True
 
 		return False
 	def is_number(self):
-		if self.value in numbs:
+		if not self.value == 'F':
 			return True
 
 		return False
 	def is_red(self):
-		if self.get_suit() == 'R':
+		if self.suit == 'R':
 			return True
 
 		return False
@@ -39,10 +38,10 @@ class Card:
 		targets = []
 
 		if self.is_number():
-			if self.get_value() == '0':
-				return targets
+			if self.value == '0':
+				return []
 
-			target_number = numbs[numbs.index(self.get_value())-1]
+			target_number = numb_lookup[self.value]
 
 			if self.is_red():
 				targets.append(target_number + 'B')
@@ -51,7 +50,7 @@ class Card:
 
 			return targets
 
-		if self.is_face():
-			targets.append(self.get_value() + self.get_suit())
+		else:
+			targets.append(self.value + self.suit)
 
 		return targets
