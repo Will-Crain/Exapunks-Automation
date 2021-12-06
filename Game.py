@@ -40,41 +40,41 @@ class Game:
 		rank_bot_card = rank_stack[0]
 		rank_valid_moves = rank_bot_card.get_targets()
 
+		ref_rank_len = len(ref_rank.cards)
+		rank_stack_len = len(rank_stack)
+
 		for rank in self.get_ranks():
+
+			rank_len = len(rank.cards)
 
 			# Can't move into own rank
 			if rank.rank == ref_rank.rank:
 				continue
 			# Don't check empty ranks
-			if len(ref_rank.cards) == 0:
+			if ref_rank_len == 0:
 				continue
 
 			move = Move(rank.rank, ref_rank.rank, rank_stack)
 
-			if len(rank.cards) == 0:
+			if rank_len == 0:
 				if ref_rank.rank == -1:
-					# move.output()
 					moves.append(move)
 				elif rank.rank == -1:
-					if len(rank_stack) == 1:
-						# move.output()
+					if rank_stack_len == 1:
 						moves.append(move)
 				else:
-					if len(rank_stack) < len(ref_rank.cards):
-						# move.output()
+					if rank_stack_len < ref_rank_len:
 						moves.append(move)
-			elif len(rank.cards) > 0:
+			elif rank_len > 0:
 				top_card = rank.cards[-1]
 
 				if ref_rank.rank == -1:
 					if top_card.id in rank_valid_moves:
-						# move.output()
 						moves.append(move)
 				elif rank.rank == -1:
 					continue
 				else:
 					if top_card.id in rank_valid_moves:
-						# move.output()
 						moves.append(move)
 		return moves
 
@@ -99,15 +99,17 @@ class Game:
 		for rank in self.ranks:
 			rank_stack = rank.get_top_stack()
 
+			rank_len = len(rank.cards)
+
 			if len(rank_stack) < len(rank.cards):
 				return False
 			
-			if len(rank.cards) == 0:
+			if rank_len == 0:
 				points += 1
-			elif len(rank.cards) == 4:
+			elif rank_len == 4:
 				if rank.cards[0].is_face():
 					points += 1
-			elif len(rank.cards) == 5:
+			elif rank_len == 5:
 				if rank.cards[0].is_number():
 					points += 1
 
@@ -115,30 +117,9 @@ class Game:
 			return True
 		
 		return False
-	def test_victory(self):
-		if len(self.hand.cards) > 0:
-			return False
-
-		points = 0
-
-		for rank in self.ranks:
-			rank_stack = rank.get_top_stack()
-
-			if len(rank.cards) == 0:
-				points += 1
-			elif len(rank.cards) == len(rank_stack):
-				points += 1
-			
-		if points == len(self.ranks):
-			return True
-
-		return False
 
 	def hash_exists(self, hash):
-		if hash in self.hashes:
-			return True
-
-		return False
+		return hash in self.hashes
 	
 	def output(self):
 		out_arr = []
@@ -179,6 +160,7 @@ class Game:
 			new_rank_array.append(Rank(rank.rank, new_card_array))
 		
 		return Game(new_rank_array, new_hand)
+
 	def make_move(self, move):
 		from_rank = self.get_rank(move.from_rank_id)
 		dest_rank = self.get_rank(move.dest_rank_id)
@@ -208,8 +190,8 @@ class Game:
 			if new_game.is_victory():
 				# new_game.output()
 				self.winning_moves.append(move_list)
-				self.move_stack = []
-				return
+				# self.move_stack = []
+				# return
 			
 			hash = new_game.hash()
 			if self.hash_exists(hash):
@@ -225,7 +207,7 @@ class Game:
 			
 					new_move_stack.append(move_list_copy)
 
-		del self.move_stack
+		# del self.move_stack
 		self.move_stack = new_move_stack.copy()
 
 	def solve(self):
