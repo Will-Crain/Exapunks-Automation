@@ -142,11 +142,25 @@ class Board():
 		else:
 			return (self.get_rank_x(rank_idx), self.get_stack_front_y(rank_idx))
 
+	def press_new_game(self):
+		# pyautogui.moveTo(self.newgame_x, self.newgame_x, self.default_delay)
+		time.sleep(2)
+		pyautogui.moveTo(self.newgame_x, self.newgame_y, duration=self.default_delay)
+		pyautogui.mouseDown(button='left')
+		pyautogui.mouseUp(button='left')
+		# pyautogui.click(self.newgame_x, self.newgame_y, duration = self.default_delay, button='left')
+		time.sleep(4)
+
+	def play_games(self, n):
+		for i in range(n):
+			game = self.make_game()
+			winning_moves = game.solve()
+
+			self.execute_move_list(winning_moves)
+			self.press_new_game()
+
 def main():
 	board = Board()
-	game = board.make_game()
-	winning_moves = game.solve()
-
-	board.execute_move_list(winning_moves)
+	board.play_games(2)
 	
 profiler.run('main()')
