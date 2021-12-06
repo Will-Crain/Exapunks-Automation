@@ -1,18 +1,13 @@
-
-numbs = ['0', '9', '8', '7', '6']
-numb_lookup = {
-	'9':	'0',
-	'8':	'9',
-	'7':	'8',
-	'6':	'7'
-}
-colrs = ['R', 'B']
-
-faces = ['F']
-suits = ['H', 'D', 'C', 'S']
-
-
 class Card:
+	
+	numb_lookup = {
+		'9':	'0',
+		'8':	'9',
+		'7':	'8',
+		'6':	'7'
+	}
+
+
 	def __init__(self, value, suit):
 		self.suit = suit
 		self.value = value
@@ -41,7 +36,7 @@ class Card:
 			if self.value == '0':
 				return []
 
-			target_number = numb_lookup[self.value]
+			target_number = self.numb_lookup[self.value]
 
 			if self.is_red():
 				targets.append(target_number + 'B')
