@@ -1,21 +1,29 @@
+from collections import deque
 import copy as copy
+
 import time
+import sys
 
 from Move import Move
 from Rank import Rank
 from Card import Card
+
 
 class Game:
 	def __init__(self, rank_info, hand=Rank(-1, [])):
 		self.ranks = rank_info
 		self.hand = hand
 
-		self.move_stack = []
+		self.move_stack = deque([])
+		self.move_stack_len = 0
+
 		self.winning_moves = []
 		self.hashes = set(())
 
 		self.done = False
 		self.iter = 0
+
+		self.check_hand = False
 
 	def get_hand(self):
 		return self.hand
@@ -27,11 +35,13 @@ class Game:
 
 	def get_ranks(self):
 		rank_list = self.ranks.copy()
-		rank_list.append(self.hand)
+		if self.check_hand:
+			rank_list.append(self.hand)
 
 		return rank_list
 	def get_rank_moves(self, ref_rank):
 		moves = []
+		hand_move = None
 
 		if len(ref_rank.cards) == 0:
 			return moves
@@ -61,7 +71,7 @@ class Game:
 					moves.append(move)
 				elif rank.rank == -1:
 					if rank_stack_len == 1:
-						moves.append(move)
+						hand_move = move
 				else:
 					if rank_stack_len < ref_rank_len:
 						moves.append(move)
@@ -76,6 +86,11 @@ class Game:
 				else:
 					if top_card.id in rank_valid_moves:
 						moves.append(move)
+
+		# If we can move a card somewhere /and/ the hand, discard the hand move
+		if len(moves) == 0 and hand_move:
+			moves.append(hand_move)
+
 		return moves
 
 	def hash(self):
@@ -101,7 +116,7 @@ class Game:
 
 			rank_len = len(rank.cards)
 
-			if len(rank_stack) < len(rank.cards):
+			if len(rank_stack) < rank_len:
 				return False
 			
 			if rank_len == 0:
@@ -161,90 +176,87 @@ class Game:
 		
 		return Game(new_rank_array, new_hand)
 
+	def do_extend(self, rank, stack):
+		for card in stack:
+			rank.cards.append(card)
+	def do_pop(self, rank, iter):
+		for _ in range(iter):
+			rank.cards.pop()
+
 	def make_move(self, move):
 		from_rank = self.get_rank(move.from_rank_id)
 		dest_rank = self.get_rank(move.dest_rank_id)
 
-
-		def do_extend(rank, stack):
-			for card in stack:
-				rank.cards.append(card)
-			# rank.cards.extend(stack)
-		def do_pop(rank, iter):
-			for _ in range(iter):
-				rank.cards.pop()
-
-		do_extend(dest_rank, move.stack)
-		do_pop(from_rank, len(move.stack))
+		self.do_extend(dest_rank, move.stack)
+		self.do_pop(from_rank, len(move.stack))
 				
 	def iterate(self):
-		new_move_stack = []
+		move_list = self.move_stack.popleft()
+		self.move_stack_len -= 1
+		new_game = self.make_copy()
+	
+		for move in move_list:
+			new_game.make_move(move)
+
+		if new_game.is_victory():
+			self.winning_moves.append(move_list)
+			return
 		
-		for move_list in self.move_stack:
-			new_game = self.make_copy()
+		hash = new_game.hash()
+		if self.hash_exists(hash):
+			return
+
+		self.hashes.add(hash)
+
+		for rank in new_game.get_ranks():
+			moves_to_add = new_game.get_rank_moves(rank)
+			for move in moves_to_add:
+				move_list_copy = copy.copy(move_list)
+				move_list_copy.append(move)
 		
-			for move in move_list:
-				new_game.make_move(move)
+				self.move_stack.append(move_list_copy)
+				self.move_stack_len += 1
 
+	def solve(self, with_hand=False):
+		self.check_hand = with_hand
 
-			if new_game.is_victory():
-				# new_game.output()
-				self.winning_moves.append(move_list)
-				# self.move_stack = []
-				# return
-			
-			hash = new_game.hash()
-			if self.hash_exists(hash):
-				continue
-
-			self.hashes.add(hash)
-
-			for rank in new_game.get_ranks():
-				moves_to_add = new_game.get_rank_moves(rank)
-				for move in moves_to_add:
-					move_list_copy = copy.copy(move_list)
-					move_list_copy.append(move)
-			
-					new_move_stack.append(move_list_copy)
-
-		# del self.move_stack
-		self.move_stack = new_move_stack.copy()
-
-	def solve(self):
 		for rank in self.get_ranks():
 			moves = self.get_rank_moves(rank)
 			for move in moves:
 				self.move_stack.append([move])
+				self.move_stack_len += 1
 
 		self.hashes.add(self.hash())
 
-		iter = 1
-		while len(self.move_stack) > 0:
-			prev_time = time.time_ns()/1000
+		iter = 0
+		time_start = time.time_ns()-10
+
+		debug = False
+
+		while self.move_stack:
 			self.iterate()
 
-			new_time = time.time_ns()/1000
-			new_size = len(self.move_stack)
-			new_now = time.localtime()
+			if debug:
+				now_time = time.time_ns()
+				time_since = now_time - time_start
 
-			if new_size > 0:
-				out_str = str(iter) + '\t'
-				out_str += str(new_size)
-				out_str += ' in '
-				out_str += str(round((new_time-prev_time)/1000/1000, 2))
-				out_str += 's\t('
-				out_str += str(round((new_time-prev_time)/new_size, 3))
-				out_str += 'ms per operation)\t'
-				out_str += str(new_now.tm_hour) + ':' + str(new_now.tm_min) + '.' + str(new_now.tm_sec)
+				mean_time = iter/time_since*1e3
+
+				out_str = '\r'
+				out_str += str(iter) + ' iterations\t\t'
+				out_str += str(self.move_stack_len) + ' items\t\t'
+				out_str += str(round(time_since/1e9)) + 's\t\t'
+				out_str += str(round(mean_time/1e3, 0)) + 'us\t\t'
+
+				sys.stdout.write(out_str)
+				sys.stdout.flush()
 
 				iter += 1
-
-				print(out_str)
 
 		if len(self.winning_moves) > 0:
 			return self.winning_moves[0]
 		else:
-			print('No winning moves :(')
+			return None
 
 
 # ranks = [

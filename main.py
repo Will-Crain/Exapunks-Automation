@@ -1,10 +1,8 @@
-from PIL import ImageGrab, Image, ImageChops, ImageStat
+from PIL import ImageGrab, Image
 
 import os
 import pyautogui
 import time
-
-import cProfile as profiler
 
 from Game import Game
 from Card import Card
@@ -96,10 +94,7 @@ class Board():
 	def execute_move_list(self, move_list):
 
 		# Tab into window
-		pyautogui.mouseDown(200, 200, button='left')
-		time.sleep(0.6)
-		pyautogui.mouseUp()
-		time.sleep(1)
+		self.tab_in()
 
 		for move in move_list:
 			from_position = self.get_back_stack_position(move.from_rank_id)
@@ -141,26 +136,42 @@ class Board():
 			return (self.hand_x, self.hand_y)
 		else:
 			return (self.get_rank_x(rank_idx), self.get_stack_front_y(rank_idx))
+	def tab_in(self):
+		pyautogui.mouseDown(200, 200, button='left')
+		time.sleep(0.6)
+		pyautogui.mouseUp()
+		time.sleep(1)
 
 	def press_new_game(self):
-		# pyautogui.moveTo(self.newgame_x, self.newgame_x, self.default_delay)
+		self.tab_in()
+
 		time.sleep(2)
 		pyautogui.moveTo(self.newgame_x, self.newgame_y, duration=self.default_delay)
 		pyautogui.mouseDown(button='left')
 		pyautogui.mouseUp(button='left')
-		# pyautogui.click(self.newgame_x, self.newgame_y, duration = self.default_delay, button='left')
 		time.sleep(4)
 
-	def play_games(self, n):
-		for i in range(n):
+	def play_games(self, n, check_only_quick=True):
+		completed_games = 0
+		while completed_games < n:
 			game = self.make_game()
-			winning_moves = game.solve()
+			winning_moves = game.solve(False)
+
+			if winning_moves is None:
+				print('No quick win :(')
+				if check_only_quick:
+					self.press_new_game()
+					continue
+				else:
+					game = self.make_game()
+					winning_moves = game.solve(True)
 
 			self.execute_move_list(winning_moves)
+			completed_games += 1
 			self.press_new_game()
 
 def main():
 	board = Board()
-	board.play_games(2)
+	board.play_games(21, True)
 	
-profiler.run('main()')
+main()
