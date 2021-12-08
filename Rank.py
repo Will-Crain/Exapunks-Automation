@@ -2,58 +2,43 @@ from collections import deque
 import copy
 
 class Rank:
-	def __init__(self, rank, cards):
+	def __init__(self, rank, stacks):
 		self.rank = rank
-		self.cards = deque(cards)
+		self.stacks = stacks
 
-	def get_card_ids(self):
-		out_arr = []
-		for card in self.cards:
-			out_arr.append(card.id)
-		
-		return out_arr
-
-	def remove_card(self, card):
-		self.cards.remove(card)
-
+	def remove_top_stack(self):
+		self.stacks.pop(-1)
 	def get_top_stack(self):
-		if len(self.cards) == 0:
-			return []
-		
-		# stack = copy.copy(self.cards)
-		stack = []
-		# complete = False
-
-		# while not complete:
-		# 	if len(stack) == 1:
-		# 		complete = True
-		# 		break
+		return self.stacks[-1]
+	def get_output(self):
+		out_arr = []
+		for stack in self.stacks:
+			out_arr.push(stack.get_output())
+			
+		return out_arr
 	
-		# 	if not cards[0] in cards[1].get_targets():
-		# 		cards.popleft()
-		# 	else:
-		# 		complete = True
-		# 		break
+	def make_copy(self):
+		new_stacks = []
 		
-		# return cards
-		for card in reversed(self.cards):
-			if len(stack) == 0:
-				stack.append(card)
-			else:
-				if card.id in stack[-1].get_targets():
-					stack.append(card)
-				else:
-					break
+		for stack in self.stacks:
+			new_stacks.append(stack.make_copy())
+		
+		return Rank(self.rank, new_stacks)
 
-		stack.reverse()
-		return stack
+	def get_total_cards(self):
+		cards = 0
+		for stack in self.stacks:
+			cards += stack.length
 
+		return cards
 	def hash(self):
 		out_str = ''
 		if self.rank == -1:
 			out_str += 'HAND_'
 		else:
 			out_str += 'COL_'
-		out_str += ''.join(self.get_card_ids())
+		
+		for stack in self.stacks:
+			out_str += stack.hash()
 
 		return out_str
