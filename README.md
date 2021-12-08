@@ -8,8 +8,8 @@ This repository solves Exapunk's Solitaire minigame, ПАСЬЯНС. This reposi
 The solver is breadth-first and it finds **all** possible solutions for the particular puzzle. `Game.move_stack` is a `collections.deque` that stores each possible set of moves. Every `Game.iteration`, a list of consecutive moves is popped off of the move stack and checked for child moves. If a child move is found, it's appended to the end of a copy of the move list, then the new move list is appended to the back of the move stack. If there are no moves left, we check if the board we're looking at is a winning board. If it is, append that particular move list to `Game.winning_moves`. Win or not, the move stack shrinks until it's empty and we know we've searched all possible states.
 
 # Example of solution
-![Gif 0](https://i.imgur.com/mjwmnwt.gif)
-![Gif 1](https://i.imgur.com/ToIFprx.mp4)
+![Gif 0](ex/solitaire_0.gif)
+![Gif 1](ex/solitaire_1.gif)
 
 # Usage & Installation
 This code wasn't really made with other people using it mind. That said, if your monitor resolution is 1920x1080 and Exapunks is full screen, this should work for you. You'll just need to fork this repository and run `main.py`. There are some things you can change to tailor this for yourself.
