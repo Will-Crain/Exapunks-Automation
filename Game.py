@@ -7,7 +7,6 @@ import sys
 from Move import Move
 from Rank import Rank
 from Stack import Stack
-from Card import Card
 
 
 class Game:

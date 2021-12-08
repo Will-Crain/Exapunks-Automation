@@ -1,5 +1,3 @@
-from collections import deque
-
 class Move:
 	def __init__(self, dest_rank_id, from_rank_id):
 		self.dest_rank_id = dest_rank_id

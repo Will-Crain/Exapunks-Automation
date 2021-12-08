@@ -1,6 +1,3 @@
-from Card import Card
-import copy
-
 class Stack:
 
 	numb_lookup = {

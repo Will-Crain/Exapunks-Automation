@@ -1,6 +1,3 @@
-from collections import deque
-import copy
-
 class Rank:
 	def __init__(self, rank, stacks):
 		self.rank = rank
