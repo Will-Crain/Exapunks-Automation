@@ -7,6 +7,9 @@ import time
 from Game import Game
 from Card import Card
 from Rank import Rank
+from Stack import Stack
+
+from statistics import mean, stdev
 
 CARD_IMAGES = r'res/'
 
@@ -67,7 +70,6 @@ class Board():
 				card_suit = image_name[1]
 
 				return Card(card_value, card_suit)
-
 	def make_game(self):
 		rank_cards = []
 		for rank_idx in range(len(self.bounding_box_list)):
@@ -86,7 +88,8 @@ class Board():
 
 		ranks = []
 		for cards_idx in range(len(rank_cards)):
-			ranks.append(Rank(cards_idx, rank_cards[cards_idx]))
+			rank_stacks = Stack.from_cards(rank_cards[cards_idx])
+			ranks.append(Rank(len(ranks), rank_stacks))
 		
 		self.game = Game(ranks)
 		return self.game
@@ -107,7 +110,6 @@ class Board():
 
 			self.game.make_move(move)
 
-
 	def get_rank_x(self, rank_idx):
 		return self.left_offset + rank_idx*self.horizontal_spacing + self.card_width/2
 	
@@ -116,7 +118,7 @@ class Board():
 			return
 		
 		rank = self.game.get_rank(rank_idx)
-		return self.top_offset + (len(rank.cards)-1 + 0.5)*self.vertical_spacing #+ self.vertical_spacing/2#+ self.card_height/2
+		return self.top_offset + (rank.get_total_cards()-1 + 0.75)*self.vertical_spacing
 	def get_stack_back_y(self, rank_idx):
 		if not self.game:
 			return
@@ -124,7 +126,7 @@ class Board():
 		rank = self.game.get_rank(rank_idx)
 		rank_stack = rank.get_top_stack()
 
-		return self.top_offset + (len(rank.cards)-len(rank_stack) + 0.5)*self.vertical_spacing
+		return self.top_offset + (rank.get_total_cards() - rank_stack.length + 0.75)*self.vertical_spacing
 
 	def get_back_stack_position(self, rank_idx):
 		if rank_idx == -1:
@@ -138,40 +140,68 @@ class Board():
 			return (self.get_rank_x(rank_idx), self.get_stack_front_y(rank_idx))
 	def tab_in(self):
 		pyautogui.mouseDown(200, 200, button='left')
-		time.sleep(0.6)
+		time.sleep(self.default_delay)
 		pyautogui.mouseUp()
-		time.sleep(1)
+		time.sleep(self.default_delay)
 
 	def press_new_game(self):
 		self.tab_in()
 
-		time.sleep(2)
 		pyautogui.moveTo(self.newgame_x, self.newgame_y, duration=self.default_delay)
 		pyautogui.mouseDown(button='left')
 		pyautogui.mouseUp(button='left')
+
 		time.sleep(4)
 
-	def play_games(self, n, check_only_quick=True):
+	def play_games(self, n):
+		durations = []
 		completed_games = 0
+
 		while completed_games < n:
 			game = self.make_game()
-			winning_moves = game.solve(False)
+			start_time = time.time()
+			winning_moves = game.solve(True)
+			end_time = time.time()
 
 			if winning_moves is None:
-				print('No quick win :(')
-				if check_only_quick:
-					self.press_new_game()
-					continue
-				else:
-					game = self.make_game()
-					winning_moves = game.solve(True)
-
+				self.press_new_game()
+				continue
+			
+			durations.append(end_time-start_time)
 			self.execute_move_list(winning_moves)
 			completed_games += 1
 			self.press_new_game()
 
+		str_template = '{duration:0.2f}s +/- {st_dev:0.2f}s'
+		print(str_template.format(duration=mean(durations), st_dev=stdev(durations)))
+
+	def play_quick_games(self, n):
+		durations = []
+		completed_games = 0
+
+		while completed_games < n:
+			game = self.make_game()
+			start_time = time.time()
+			winning_moves = game.solve(False)
+			end_time = time.time()
+
+			if winning_moves is None:
+				self.press_new_game()
+				continue
+			
+			durations.append(end_time-start_time)
+			self.execute_move_list(winning_moves)
+			completed_games += 1
+
+			self.press_new_game()
+
+		str_template = '{duration:0.2f}s +/- {st_dev:0.2f}s'
+		data_mean = mean(durations)
+		data_stdev = stdev(durations)
+		print(str_template.format(duration=data_mean, st_dev=data_stdev))
+
 def main():
 	board = Board()
-	board.play_games(21, True)
+	board.play_games(10)
 	
 main()

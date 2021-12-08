@@ -6,6 +6,7 @@ import sys
 
 from Move import Move
 from Rank import Rank
+from Stack import Stack
 from Card import Card
 
 
@@ -21,8 +22,6 @@ class Game:
 		self.hashes = set(())
 
 		self.done = False
-		self.iter = 0
-
 		self.check_hand = False
 
 	def get_hand(self):
@@ -33,9 +32,10 @@ class Game:
 		
 		return self.ranks[id]
 
-	def get_ranks(self):
-		rank_list = self.ranks.copy()
-		if self.check_hand:
+	def get_ranks(self, check):
+		rank_list = copy.copy(self.ranks)
+
+		if check:
 			rank_list.append(self.hand)
 
 		return rank_list
@@ -43,19 +43,13 @@ class Game:
 		moves = []
 		hand_move = None
 
-		if len(ref_rank.cards) == 0:
+		if len(ref_rank.stacks) == 0:
 			return moves
 
-		rank_stack = ref_rank.get_top_stack()
-		rank_bot_card = rank_stack[0]
-		rank_valid_moves = rank_bot_card.get_targets()
+		ref_rank_len = len(ref_rank.stacks)
 
-		ref_rank_len = len(ref_rank.cards)
-		rank_stack_len = len(rank_stack)
-
-		for rank in self.get_ranks():
-
-			rank_len = len(rank.cards)
+		for rank in self.get_ranks(self.check_hand):
+			rank_len = len(rank.stacks)
 
 			# Can't move into own rank
 			if rank.rank == ref_rank.rank:
@@ -64,27 +58,28 @@ class Game:
 			if ref_rank_len == 0:
 				continue
 
-			move = Move(rank.rank, ref_rank.rank, rank_stack)
+			move = Move(rank.rank, ref_rank.rank)
 
 			if rank_len == 0:
 				if ref_rank.rank == -1:
 					moves.append(move)
 				elif rank.rank == -1:
-					if rank_stack_len == 1:
+					if ref_rank.stacks[-1].length == 1:
 						hand_move = move
 				else:
-					if rank_stack_len < ref_rank_len:
+					if ref_rank_len > 1:
 						moves.append(move)
 			elif rank_len > 0:
-				top_card = rank.cards[-1]
+				rank_stack = rank.stacks[-1]
+				can_combine = Stack.get_combine(ref_rank.stacks[-1], rank_stack)
 
 				if ref_rank.rank == -1:
-					if top_card.id in rank_valid_moves:
+					if can_combine is not None:
 						moves.append(move)
 				elif rank.rank == -1:
 					continue
 				else:
-					if top_card.id in rank_valid_moves:
+					if can_combine is not None:
 						moves.append(move)
 
 		# If we can move a card somewhere /and/ the hand, discard the hand move
@@ -96,7 +91,7 @@ class Game:
 	def hash(self):
 		hashes = []
 
-		for rank in self.get_ranks():
+		for rank in self.get_ranks(self.check_hand):
 			hashes.append('%s/' % rank.hash())
 
 		hashes.sort()
@@ -106,27 +101,16 @@ class Game:
 
 	def is_victory(self):
 		points = 0
-
-		if len(self.hand.cards) > 0:
+		if len(self.hand.stacks) > 0:
 			return False
 		
-
 		for rank in self.ranks:
-			rank_stack = rank.get_top_stack()
-
-			rank_len = len(rank.cards)
-
-			if len(rank_stack) < rank_len:
-				return False
-			
-			if rank_len == 0:
+			rank_stacks = len(rank.stacks)
+			rank_cards = rank.get_total_cards()
+			if rank_stacks == 0:
 				points += 1
-			elif rank_len == 4:
-				if rank.cards[0].is_face():
-					points += 1
-			elif rank_len == 5:
-				if rank.cards[0].is_number():
-					points += 1
+			elif rank_stacks == 1 and (rank_cards == 4 or rank_cards == 5):
+				points += 1
 
 		if points == 9:
 			return True
@@ -136,6 +120,7 @@ class Game:
 	def hash_exists(self, hash):
 		return hash in self.hashes
 	
+	# update for Stack
 	def output(self):
 		out_arr = []
 
@@ -168,27 +153,24 @@ class Game:
 
 	def make_copy(self):
 		new_rank_array = []
-		new_hand = Rank(-1, self.hand.cards.copy())
+		new_hand = self.hand.make_copy()
 
 		for rank in self.ranks:
-			new_card_array = rank.cards.copy()
-			new_rank_array.append(Rank(rank.rank, new_card_array))
+			new_rank_array.append(rank.make_copy())
 		
 		return Game(new_rank_array, new_hand)
-
-	def do_extend(self, rank, stack):
-		for card in stack:
-			rank.cards.append(card)
-	def do_pop(self, rank, iter):
-		for _ in range(iter):
-			rank.cards.pop()
 
 	def make_move(self, move):
 		from_rank = self.get_rank(move.from_rank_id)
 		dest_rank = self.get_rank(move.dest_rank_id)
 
-		self.do_extend(dest_rank, move.stack)
-		self.do_pop(from_rank, len(move.stack))
+		if len(dest_rank.stacks) == 0:
+			dest_rank.stacks.append(from_rank.stacks[-1])
+			from_rank.stacks.pop(-1)
+		else:
+			combined = Stack.get_combine(from_rank.stacks[-1], dest_rank.stacks[-1])
+			dest_rank.stacks[-1] = combined
+			from_rank.stacks.pop(-1)
 				
 	def iterate(self):
 		move_list = self.move_stack.popleft()
@@ -208,7 +190,7 @@ class Game:
 
 		self.hashes.add(hash)
 
-		for rank in new_game.get_ranks():
+		for rank in new_game.get_ranks(self.check_hand):
 			moves_to_add = new_game.get_rank_moves(rank)
 			for move in moves_to_add:
 				move_list_copy = copy.copy(move_list)
@@ -220,7 +202,7 @@ class Game:
 	def solve(self, with_hand=False):
 		self.check_hand = with_hand
 
-		for rank in self.get_ranks():
+		for rank in self.get_ranks(self.check_hand):
 			moves = self.get_rank_moves(rank)
 			for move in moves:
 				self.move_stack.append([move])

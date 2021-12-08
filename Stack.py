@@ -1,8 +1,10 @@
 from Card import Card
+import copy
 
 class Stack:
 
 	numb_lookup = {
+		'0':	None,
 		'9':	'0',
 		'8':	'9',
 		'7':	'8',
@@ -15,13 +17,18 @@ class Stack:
 		'7': 7,
 		'6': 6,
 	}
+	suit_swap = {
+		'R': 'B',
+		'B': 'R'
+	}
 
-	@classmethod
+	@staticmethod
 	def get_combine(from_stack, to_stack):
 		if from_stack.is_faces and to_stack.is_faces:
 			suit_match = from_stack.back.suit == to_stack.front.suit
 			if suit_match:
-				return Stack(to_stack.back, from_stack.front)
+				new_stack = Stack(to_stack.back, from_stack.front, to_stack.length + from_stack.length)
+				return new_stack
 
 			return None
 
@@ -30,19 +37,65 @@ class Stack:
 			suit_match = not from_stack.back.suit == to_stack.front.suit
 
 			if value_match and suit_match:
-				return Stack(to_stack.back, from_stack.front)
+				new_stack = Stack(to_stack.back, from_stack.front, to_stack.length + from_stack.length)
+				return new_stack
 		
 			return None
 
 		else:
 			return None
 
-	def __init__(self, back, front):
+	@staticmethod
+	def from_cards(cards):
+		stacks = []
+
+		# Create size 1 Stacks for every card
+		for card in cards:
+			stacks.append(Stack(card, card, 1))
+		
+		# Combine stacks now
+		complete = False
+		curr_idx = 0
+		while not complete:
+			if len(stacks) == 1:
+				complete = True
+				break
+				
+			if curr_idx >= len(stacks)-1:
+				complete = True
+				break
+
+			can_combine = Stack.get_combine(stacks[curr_idx+1], stacks[curr_idx])
+			if can_combine:
+				stacks[curr_idx] = can_combine
+				stacks.pop(curr_idx+1)
+			else:
+				curr_idx += 1
+
+		return stacks
+
+	def __init__(self, back, front, length):
 		self.back = back
 		self.front = front
+		self.length = length
 
 		self.is_faces = self.back.value == 'F'
+	def __str__(self):
+		return str(self.back) + ':' + str(self.front)
 
-		# self.len = self.value_lookup(self.back.value) - self.value_lookup(self.front.value) + 1
-		
-# Win condition is if every rank has either 0 or 1 stacks?
+	def make_copy(self):
+		return Stack(self.back, self.front, self.length)
+
+	def get_output(self):
+		out_arr = []
+		for i in self.length:
+			diff = int(self.back.value) - i
+			suit = self.back.suit
+			if diff%2 == 1:
+				suit = self.suit_swap[suit]
+
+			out_arr.push(str(diff) + suit)
+
+		return out_arr
+	def hash(self):
+		return str(self)

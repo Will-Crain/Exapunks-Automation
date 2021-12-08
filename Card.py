@@ -12,40 +12,32 @@ class Card:
 		self.suit = suit
 		self.value = value
 		self.id = value + suit
+	def __str__(self):
+		return self.id
 
 	def is_face(self):
-		if self.value == 'F':
-			return True
-
-		return False
+		return self.value == 'F'
 	def is_number(self):
-		if not self.value == 'F':
-			return True
-
-		return False
+		return not self.value == 'F'
 	def is_red(self):
-		if self.suit == 'R':
-			return True
+		return self.suit == 'R'
+	# def get_targets(self):
+	# 	targets = []
 
-		return False
+	# 	if self.is_number():
+	# 		if self.value == '0':
+	# 			return []
 
-	def get_targets(self):
-		targets = []
+	# 		target_number = self.numb_lookup[self.value]
 
-		if self.is_number():
-			if self.value == '0':
-				return []
+	# 		if self.is_red():
+	# 			targets.append(target_number + 'B')
+	# 		else:
+	# 			targets.append(target_number + 'R')
 
-			target_number = self.numb_lookup[self.value]
+	# 		return targets
 
-			if self.is_red():
-				targets.append(target_number + 'B')
-			else:
-				targets.append(target_number + 'R')
+	# 	else:
+	# 		targets.append(self.value + self.suit)
 
-			return targets
-
-		else:
-			targets.append(self.value + self.suit)
-
-		return targets
+	# 	return targets
