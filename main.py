@@ -65,11 +65,21 @@ class Board():
 			image_name = os.fsdecode(image_os)
 			image = Image.open(CARD_IMAGES + image_os).convert('RGB')
 
-			if list(image.getdata()) == list(capture.getdata()):
+			deltas = [
+				abs(i[x] - c[x])
+				for i, c in zip(image.getdata(), capture.getdata())
+				for x in (0, 1, 2)
+			]
+
+			if all(d < 2 for d in deltas):
 				card_value = image_name[0]
 				card_suit = image_name[1]
 
 				return Card(card_value, card_suit)
+		else:
+			capture.save("unmatched_capture.png")
+			raise RuntimeError("get_card failed for captured image. Capture saved to umatched_capture.png")
+
 	def make_game(self):
 		rank_cards = []
 		for rank_idx in range(len(self.bounding_box_list)):
